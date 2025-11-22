@@ -364,4 +364,4 @@ From TODO comments in code:
 1. **Multi-interval durations**: Store durations at different heartbeat timeouts (issue #675)
 2. **On-the-fly updates**: Update durations as heartbeats flow in, instead of batch regeneration
 3. **Better entity tracking**: Improve file-level granularity without sacrificing compression
-4. **SQL-based aggregation**: Use native database aggregation for MySQL/Postgres instead of programmatic approach
+4. **SQL-based aggregation**: Use native database aggregation for MySQL/PostgreSQL instead of programmatic approach

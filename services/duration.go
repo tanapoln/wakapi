@@ -237,7 +237,7 @@ func (srv *DurationService) getCached(from, to time.Time, user *models.User, fil
 // 4. Return sorted array of durations
 //
 // Example: If you code for 30 minutes with heartbeats every 2 minutes,
-// this creates 1 duration with Duration=30min and NumHeartbeats=15.
+// this creates 1 duration with Duration=30min and NumHeartbeats=16.
 func (srv *DurationService) getLive(from, to time.Time, user *models.User, interval time.Duration) (models.Durations, error) {
 	heartbeatsTimeout := interval
 
