@@ -25,6 +25,7 @@ type HeartbeatService struct {
 	repository          repositories.IHeartbeatRepository
 	languageMappingSrvc ILanguageMappingService
 	entityCacheLock     *sync.RWMutex
+	bigQueryService     *BigQueryService
 }
 
 func NewHeartbeatService(heartbeatRepo repositories.IHeartbeatRepository, languageMappingService ILanguageMappingService) *HeartbeatService {
@@ -35,6 +36,16 @@ func NewHeartbeatService(heartbeatRepo repositories.IHeartbeatRepository, langua
 		repository:          heartbeatRepo,
 		languageMappingSrvc: languageMappingService,
 		entityCacheLock:     &sync.RWMutex{},
+	}
+
+	// Initialize BigQuery service if enabled
+	if srv.config.BigQuery.Enabled {
+		bqService, err := NewBigQueryService()
+		if err != nil {
+			config.Log().Error("failed to initialize bigquery service", "error", err)
+		} else {
+			srv.bigQueryService = bqService
+		}
 	}
 
 	// using event hub is an unnecessary indirection here, however, we might
@@ -80,6 +91,14 @@ func (srv *HeartbeatService) InsertBatch(heartbeats []*models.Heartbeat) error {
 	err := srv.repository.InsertBatch(filteredHeartbeats)
 	if err == nil {
 		go srv.notifyBatch(filteredHeartbeats)
+		// Write to BigQuery asynchronously (don't block on BigQuery errors)
+		if srv.bigQueryService != nil {
+			go func(hbs []*models.Heartbeat) {
+				if err := srv.bigQueryService.InsertHeartbeats(hbs); err != nil {
+					config.Log().Error("failed to insert heartbeats to bigquery", "error", err)
+				}
+			}(filteredHeartbeats)
+		}
 	}
 	return err
 }
@@ -454,4 +473,13 @@ func (srv *HeartbeatService) checkInvalidateRangeCache(newHeartbeat *models.Hear
 	if found && newHeartbeat.Time.T().After(last.(time.Time)) {
 		srv.cache.Delete(keyLast)
 	}
+}
+
+
+// Close closes any open resources, including BigQuery client
+func (srv *HeartbeatService) Close() error {
+	if srv.bigQueryService != nil {
+		return srv.bigQueryService.Close()
+	}
+	return nil
 }

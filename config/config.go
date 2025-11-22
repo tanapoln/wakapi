@@ -214,6 +214,14 @@ type oidcProviderConfig struct {
 	Endpoint     string `yaml:"endpoint"` // base url from which auto-discovery (.well-known/openid-configuration) can be found
 }
 
+type bigQueryConfig struct {
+	Enabled                bool   `yaml:"enabled" default:"false" env:"WAKAPI_BIGQUERY_ENABLED"`
+	ServiceAccountJsonPath string `yaml:"service_account_json_path" env:"WAKAPI_BIGQUERY_SERVICE_ACCOUNT_JSON_PATH"`
+	ProjectID              string `yaml:"project_id" env:"WAKAPI_BIGQUERY_PROJECT_ID"`
+	DatasetID              string `yaml:"dataset_id" env:"WAKAPI_BIGQUERY_DATASET_ID"`
+	TableID                string `yaml:"table_id" env:"WAKAPI_BIGQUERY_TABLE_ID"`
+}
+
 type Config struct {
 	Env            string `default:"dev" env:"ENVIRONMENT"`
 	Version        string `yaml:"-"`
@@ -228,6 +236,7 @@ type Config struct {
 	Subscriptions  subscriptionsConfig
 	Sentry         sentryConfig
 	Mail           mailConfig
+	BigQuery       bigQueryConfig
 }
 
 func (c *oidcProviderConfig) String() string {
@@ -661,6 +670,29 @@ func Load(configFlag string, version string) *Config {
 		}
 	}
 
+	// bigquery validation
+	if config.BigQuery.Enabled {
+		if config.BigQuery.ServiceAccountJsonPath == "" {
+			Log().Fatal("bigquery_service_account_json_path is required when bigquery is enabled")
+		}
+		if _, err := os.Stat(config.BigQuery.ServiceAccountJsonPath); os.IsNotExist(err) {
+			Log().Fatal("bigquery service account json file not found", "path", config.BigQuery.ServiceAccountJsonPath)
+		}
+		if config.BigQuery.ProjectID == "" {
+			Log().Fatal("bigquery_project_id is required when bigquery is enabled")
+		}
+		if config.BigQuery.DatasetID == "" {
+			Log().Fatal("bigquery_dataset_id is required when bigquery is enabled")
+		}
+		if config.BigQuery.TableID == "" {
+			Log().Fatal("bigquery_table_id is required when bigquery is enabled")
+		}
+		slog.Info("bigquery integration enabled",
+			"project", config.BigQuery.ProjectID,
+			"dataset", config.BigQuery.DatasetID,
+			"table", config.BigQuery.TableID)
+	}
+
 	cronParser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 
 	if _, err := cronParser.Parse(config.App.GetWeeklyReportCron()); err != nil {
@@ -708,6 +740,7 @@ func Empty() *Config {
 		Subscriptions: subscriptionsConfig{},
 		Sentry:        sentryConfig{},
 		Mail:          mailConfig{},
+		BigQuery:      bigQueryConfig{},
 	}
 }
 
