@@ -174,7 +174,7 @@ sequenceDiagram
             Merge->>Merge: merged = copy(middleLeft)
             Merge->>Merge: merged.Duration += diff + middleRight.Duration
             Merge->>Merge: merged.NumHeartbeats += middleRight.NumHeartbeats
-            Merge->>Merge: result = cached[0..n-1] + [merged] + missing[n+2..m]
+            Merge->>Merge: result = cached[0..n-1] + [merged] + missing[n+1..m-1]
         else Different GroupHash
             Note over Merge: Extend left, keep right
             Merge->>Merge: middleLeft.Duration += diff
