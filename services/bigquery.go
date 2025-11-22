@@ -91,13 +91,13 @@ func NewBigQueryService() (*BigQueryService, error) {
 	}
 
 	// Get reference to the heartbeat table
-	heartbeatTable := client.Dataset(cfg.BigQuery.DatasetID).Table(cfg.BigQuery.TableID)
+	heartbeatTable := client.Dataset(cfg.BigQuery.DatasetID).Table(cfg.BigQuery.HeartbeatTableID)
 
 	// Check if heartbeat table exists, if not, create it with explicit schema
 	if _, err := heartbeatTable.Metadata(ctx); err != nil {
 		slog.Info("bigquery heartbeat table does not exist, creating it",
 			"dataset", cfg.BigQuery.DatasetID,
-			"table", cfg.BigQuery.TableID)
+			"table", cfg.BigQuery.HeartbeatTableID)
 
 		// Define schema explicitly to ensure consistency
 		schema := bigquery.Schema{
@@ -136,14 +136,13 @@ func NewBigQueryService() (*BigQueryService, error) {
 	}
 
 	// Get reference to the duration table
-	durationTableName := cfg.BigQuery.TableID + "_durations"
-	durationTable := client.Dataset(cfg.BigQuery.DatasetID).Table(durationTableName)
+	durationTable := client.Dataset(cfg.BigQuery.DatasetID).Table(cfg.BigQuery.DurationTableID)
 
 	// Check if duration table exists, if not, create it
 	if _, err := durationTable.Metadata(ctx); err != nil {
 		slog.Info("bigquery duration table does not exist, creating it",
 			"dataset", cfg.BigQuery.DatasetID,
-			"table", durationTableName)
+			"table", cfg.BigQuery.DurationTableID)
 
 		// Define duration schema
 		durationSchema := bigquery.Schema{

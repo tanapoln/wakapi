@@ -10,8 +10,8 @@ Wakapi can automatically write heartbeat events and computed durations to Google
 - **Asynchronous writes**: BigQuery writes happen in the background without blocking
 - **Auto table creation**: BigQuery tables are created automatically if they don't exist
 - **Two tables**: 
-  - `heartbeats` (or your configured table_id): Raw heartbeat data
-  - `heartbeats_durations` (or your configured table_id + `_durations`): Computed duration data
+  - Heartbeat table (configured via `heartbeat_table_id`, default: `heartbeats`): Raw heartbeat data
+  - Duration table (configured via `duration_table_id`, default: `durations`): Computed duration data
 
 ## Configuration
 
@@ -23,7 +23,8 @@ bigquery:
   service_account_json_path: /path/to/service-account.json  # Path to GCP service account JSON
   project_id: your-gcp-project-id                       # GCP project ID
   dataset_id: wakapi                                    # BigQuery dataset ID
-  table_id: heartbeats                                  # BigQuery table ID
+  heartbeat_table_id: heartbeats                        # BigQuery heartbeat table ID
+  duration_table_id: durations                          # BigQuery duration table ID
 ```
 
 Or use environment variables:
@@ -33,7 +34,8 @@ export WAKAPI_BIGQUERY_ENABLED=true
 export WAKAPI_BIGQUERY_SERVICE_ACCOUNT_JSON_PATH=/path/to/service-account.json
 export WAKAPI_BIGQUERY_PROJECT_ID=your-gcp-project-id
 export WAKAPI_BIGQUERY_DATASET_ID=wakapi
-export WAKAPI_BIGQUERY_TABLE_ID=heartbeats
+export WAKAPI_BIGQUERY_HEARTBEAT_TABLE_ID=heartbeats
+export WAKAPI_BIGQUERY_DURATION_TABLE_ID=durations
 ```
 
 ## GCP Setup
@@ -105,7 +107,7 @@ The BigQuery heartbeats table has the following schema (matching the Heartbeat m
 
 ### Durations Table
 
-The BigQuery durations table (`{table_id}_durations`) has the following schema (matching the Duration model):
+The BigQuery durations table (default: `durations`) has the following schema (matching the Duration model):
 
 | Field              | Type      | Description                          |
 |--------------------|-----------|--------------------------------------|
@@ -262,8 +264,8 @@ BigQuery offers a [free tier](https://cloud.google.com/bigquery/pricing#free-tie
 
 ### Tables not found
 The tables are created automatically on first startup. Check logs for creation errors. You should see both:
-- `{table_id}` table for heartbeats
-- `{table_id}_durations` table for durations
+- Heartbeat table (default: `heartbeats`)
+- Duration table (default: `durations`)
 
 ### Permission denied
 Ensure the service account has the correct IAM roles (`bigquery.dataEditor` and `bigquery.jobUser`).
