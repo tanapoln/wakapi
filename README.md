@@ -559,6 +559,18 @@ It is unclear how to handle the three minutes in between. Did the developer do a
 
 See [this comment](https://github.com/muety/wakapi/issues/716#issuecomment-2668887035) for another example.
 
+## 📚 Developer Documentation
+
+For developers who want to understand or contribute to the Duration computation module:
+
+* **[Duration Module Overview](docs/README.md)** - Start here for a high-level understanding
+* **[Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md)** - Visual diagrams of the system
+* **[Duration Computation](docs/DURATION_COMPUTATION.md)** - Detailed algorithm documentation
+* **[Sequence Diagrams](docs/DURATION_SEQUENCE_DIAGRAMS.md)** - Flow diagrams showing data movement
+* **[Data Flow](docs/DURATION_DATA_FLOW.md)** - Data transformations and structures
+
+These docs explain how Wakapi transforms raw heartbeats from your code editor into meaningful time summaries.
+
 ## 👥 Community contributions
 
 * 💻 [Code] Image generator from Wakapi stats – [LacazeThomas/wakapi-stats](https://github.com/LacazeThomas/wakapi-stats) (`Go`)
