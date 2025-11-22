@@ -1,14 +1,17 @@
 # BigQuery Integration
 
-Wakapi can automatically write heartbeat events to Google BigQuery for advanced analytics and long-term data warehousing.
+Wakapi can automatically write heartbeat events and computed durations to Google BigQuery for advanced analytics and long-term data warehousing.
 
 ## Features
 
-- **Automatic sync**: All heartbeat events are automatically written to BigQuery
-- **Schema matching**: BigQuery table schema matches 100% with PostgreSQL Heartbeat model
-- **Graceful error handling**: BigQuery errors don't affect heartbeat ingestion
+- **Automatic sync**: All heartbeat events and computed durations are automatically written to BigQuery
+- **Schema matching**: BigQuery table schemas match with PostgreSQL models (Heartbeat and Duration)
+- **Graceful error handling**: BigQuery errors don't affect heartbeat ingestion or duration computation
 - **Asynchronous writes**: BigQuery writes happen in the background without blocking
-- **Auto table creation**: The BigQuery table is created automatically if it doesn't exist
+- **Auto table creation**: BigQuery tables are created automatically if they don't exist
+- **Two tables**: 
+  - `heartbeats` (or your configured table_id): Raw heartbeat data
+  - `heartbeats_durations` (or your configured table_id + `_durations`): Computed duration data
 
 ## Configuration
 
@@ -67,9 +70,11 @@ gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
   --role="roles/bigquery.jobUser"
 ```
 
-## BigQuery Schema
+## BigQuery Schemas
 
-The BigQuery table has the following schema (matching the Heartbeat model):
+### Heartbeats Table
+
+The BigQuery heartbeats table has the following schema (matching the Heartbeat model):
 
 | Field              | Type      | Description                    |
 |--------------------|-----------|--------------------------------|
@@ -98,9 +103,33 @@ The BigQuery table has the following schema (matching the Heartbeat model):
 | line_additions     | INTEGER   | Lines added                    |
 | project_root_count | INTEGER   | Project root count             |
 
+### Durations Table
+
+The BigQuery durations table (`{table_id}_durations`) has the following schema (matching the Duration model):
+
+| Field              | Type      | Description                          |
+|--------------------|-----------|--------------------------------------|
+| id                 | INTEGER   | Unique duration ID                   |
+| user_id            | STRING    | User identifier                      |
+| time               | TIMESTAMP | Start time of duration               |
+| duration           | INTEGER   | Duration length in nanoseconds       |
+| project            | STRING    | Project name                         |
+| language           | STRING    | Programming language                 |
+| editor             | STRING    | Editor/IDE name                      |
+| operating_system   | STRING    | Operating system                     |
+| machine            | STRING    | Machine name                         |
+| category           | STRING    | Category (coding, browsing)          |
+| branch             | STRING    | Git branch                           |
+| entity             | STRING    | File path or URL (most prominent)    |
+| num_heartbeats     | INTEGER   | Number of heartbeats in this duration|
+| group_hash         | STRING    | Hash for grouping durations          |
+| timeout            | INTEGER   | Heartbeat timeout used (nanoseconds) |
+
 ## Example Queries
 
-### Total coding time by user
+### Heartbeat Queries
+
+#### Total coding time by user
 ```sql
 SELECT 
   user_id,
@@ -112,7 +141,7 @@ GROUP BY user_id, date
 ORDER BY date DESC
 ```
 
-### Top languages by user
+#### Top languages by user
 ```sql
 SELECT 
   user_id,
@@ -125,7 +154,7 @@ ORDER BY heartbeats DESC
 LIMIT 10
 ```
 
-### Daily activity heatmap
+#### Daily activity heatmap
 ```sql
 SELECT 
   DATE(time) as date,
@@ -138,22 +167,80 @@ GROUP BY date, hour
 ORDER BY date, hour
 ```
 
+### Duration Queries
+
+#### Total coding time by project (from durations)
+```sql
+SELECT 
+  user_id,
+  project,
+  SUM(duration) / 1000000000 / 3600 as hours_coded,
+  SUM(num_heartbeats) as total_heartbeats
+FROM `your-project.wakapi.heartbeats_durations`
+WHERE time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+GROUP BY user_id, project
+ORDER BY hours_coded DESC
+```
+
+#### Daily coding time per language
+```sql
+SELECT 
+  DATE(time) as date,
+  language,
+  SUM(duration) / 1000000000 / 3600 as hours_coded
+FROM `your-project.wakapi.heartbeats_durations`
+WHERE user_id = 'your-user-id'
+  AND time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)
+GROUP BY date, language
+ORDER BY date DESC, hours_coded DESC
+```
+
+#### Average session duration by editor
+```sql
+SELECT 
+  editor,
+  AVG(duration) / 1000000000 / 60 as avg_session_minutes,
+  COUNT(*) as session_count
+FROM `your-project.wakapi.heartbeats_durations`
+WHERE user_id = 'your-user-id'
+  AND time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+GROUP BY editor
+ORDER BY avg_session_minutes DESC
+```
+
+#### Most active coding days
+```sql
+SELECT 
+  DATE(time) as date,
+  COUNT(DISTINCT project) as projects_worked_on,
+  SUM(duration) / 1000000000 / 3600 as hours_coded,
+  SUM(num_heartbeats) as total_heartbeats
+FROM `your-project.wakapi.heartbeats_durations`
+WHERE user_id = 'your-user-id'
+  AND time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
+GROUP BY date
+ORDER BY hours_coded DESC
+LIMIT 10
+```
+
 ## Monitoring
 
 Check the Wakapi logs for BigQuery integration status:
 
 ```bash
 # On startup
-[INFO] bigquery integration enabled project=your-project dataset=wakapi table=heartbeats
+[INFO] bigquery service initialized successfully
 
 # On successful table creation
-[INFO] bigquery table created successfully
+[INFO] bigquery heartbeat table created successfully
+[INFO] bigquery duration table created successfully
 
 # On errors
 [ERROR] failed to insert heartbeats to bigquery error=<error message>
+[ERROR] failed to insert durations to bigquery error=<error message>
 ```
 
-BigQuery errors are logged but don't affect normal Wakapi operation. Heartbeats will still be saved to the primary database even if BigQuery writes fail.
+BigQuery errors are logged but don't affect normal Wakapi operation. Heartbeats will still be saved to the primary database even if BigQuery writes fail. Similarly, durations will be computed and cached even if BigQuery writes fail.
 
 ## Cost Considerations
 
@@ -162,9 +249,9 @@ BigQuery errors are logged but don't affect normal Wakapi operation. Heartbeats 
 - **Query costs**: $5 per TB scanned
 
 For a typical user generating 1000 heartbeats/day:
-- ~1 MB/day
-- ~365 MB/year
-- Storage cost: ~$0.01/year
+- Heartbeats: ~1 MB/day (~365 MB/year)
+- Durations: ~0.1 MB/day (~36 MB/year) - much more compact than heartbeats
+- Combined storage cost: ~$0.01/year
 - Queries cost depends on usage
 
 BigQuery offers a [free tier](https://cloud.google.com/bigquery/pricing#free-tier) with:
@@ -173,8 +260,10 @@ BigQuery offers a [free tier](https://cloud.google.com/bigquery/pricing#free-tie
 
 ## Troubleshooting
 
-### Table not found
-The table is created automatically on first startup. Check logs for creation errors.
+### Tables not found
+The tables are created automatically on first startup. Check logs for creation errors. You should see both:
+- `{table_id}` table for heartbeats
+- `{table_id}_durations` table for durations
 
 ### Permission denied
 Ensure the service account has the correct IAM roles (`bigquery.dataEditor` and `bigquery.jobUser`).
