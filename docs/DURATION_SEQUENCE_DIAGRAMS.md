@@ -182,7 +182,7 @@ sequenceDiagram
         end
     else diff >= HeartbeatTimeout
         Note over Merge: Keep both separate
-        Merge->>Merge: result = cached + missing
+        Merge->>Merge: result = cached + missing[0..m-1]
     end
     
     Merge-->>DS: merged durations[]
