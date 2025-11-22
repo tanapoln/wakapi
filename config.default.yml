@@ -128,3 +128,11 @@ mail:
     username:
     password:
     tls:
+
+bigquery:
+  enabled: false                         # whether to enable writing heartbeats to BigQuery
+  service_account_json_path:            # path to GCP service account JSON file
+  project_id:                           # GCP project ID
+  dataset_id:                           # BigQuery dataset ID
+  table_id:                             # BigQuery table ID (will be created if not exists)
+
