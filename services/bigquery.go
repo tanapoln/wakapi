@@ -80,7 +80,7 @@ func NewBigQueryService() (*BigQueryService, error) {
 
 		// Define schema explicitly to ensure consistency
 		schema := bigquery.Schema{
-			{Name: "id", Type: bigquery.IntegerFieldType, Required: true},
+			{Name: "id", Type: bigquery.IntegerFieldType},
 			{Name: "user_id", Type: bigquery.StringFieldType, Required: true},
 			{Name: "entity", Type: bigquery.StringFieldType, Required: true},
 			{Name: "type", Type: bigquery.StringFieldType},
