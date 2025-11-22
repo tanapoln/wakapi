@@ -685,12 +685,6 @@ func Load(configFlag string, version string) *Config {
 		if config.BigQuery.DatasetID == "" {
 			Log().Fatal("bigquery_dataset_id is required when bigquery is enabled")
 		}
-		if config.BigQuery.HeartbeatTableID == "" {
-			Log().Fatal("bigquery_heartbeat_table_id is required when bigquery is enabled")
-		}
-		if config.BigQuery.DurationTableID == "" {
-			Log().Fatal("bigquery_duration_table_id is required when bigquery is enabled")
-		}
 		slog.Info("bigquery integration enabled",
 			"project", config.BigQuery.ProjectID,
 			"dataset", config.BigQuery.DatasetID,
