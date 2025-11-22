@@ -48,7 +48,7 @@ func NewDurationService(durationRepository repositories.IDurationRepository, hea
 	}
 
 	// Initialize BigQuery service if enabled
-	if srv.config.BigQuery.Enabled {
+	if srv.config != nil && srv.config.BigQuery.Enabled {
 		bqService, err := NewBigQueryService()
 		if err != nil {
 			config.Log().Error("failed to initialize bigquery service for durations", "error", err)
