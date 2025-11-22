@@ -163,6 +163,26 @@ func (srv *SummaryService) Retrieve(from, to time.Time, user *models.User, filte
 	return summary.Sorted().InTZ(user.TZ()), nil
 }
 
+// Summarize generates a summary from durations by aggregating them across different entity types.
+// This is the core function that transforms durations into user-facing statistics.
+//
+// Algorithm:
+// 1. Get durations from DurationService (may use cache or compute live)
+// 2. Aggregate durations in parallel by entity type:
+//    - Projects: Group by project name, sum durations
+//    - Languages: Group by language, sum durations
+//    - Editors: Group by editor, sum durations
+//    - OS: Group by operating system, sum durations
+//    - Machines: Group by machine, sum durations
+//    - Branches: Group by branch (optional, if details requested)
+//    - Entities: Group by file (optional, if details requested)
+//    - Categories: Group by category, sum durations
+// 3. Collect all aggregations and create a Summary object
+// 4. Sort items by time spent (descending) and return
+//
+// Example:
+//   Input: [Duration{wakapi, Go, 8min}, Duration{frontend, TS, 4min}]
+//   Output: Summary{Projects: [wakapi: 8min, frontend: 4min], Languages: [Go: 8min, TS: 4min], ...}
 func (srv *SummaryService) Summarize(from, to time.Time, user *models.User, filters *models.Filters, customTimeout *time.Duration) (*models.Summary, error) {
 	// Initialize and fetch data
 	durations, err := srv.durationService.Get(from, to, user, filters, customTimeout, false)
@@ -170,14 +190,21 @@ func (srv *SummaryService) Summarize(from, to time.Time, user *models.User, filt
 		return nil, err
 	}
 
+	// Determine which entity types to aggregate
+	// Always include: Project, Language, Editor, OS, Machine, Category
+	// Optionally include: Branch, Entity (file) if project details are requested
 	types := models.PersistedSummaryTypes()
 	if filters != nil && filters.IsProjectDetails() {
 		types = append(types, models.SummaryBranch)
 		types = append(types, models.SummaryEntity)
 	}
 
+	// Create a channel for parallel aggregation results
 	typedAggregations := make(chan models.SummaryItemContainer)
 	defer close(typedAggregations)
+	
+	// Launch parallel aggregation goroutines for each entity type
+	// This speeds up summary generation significantly for large duration sets
 	for _, t := range types {
 		go srv.aggregateBy(durations, t, typedAggregations)
 	}
@@ -192,6 +219,7 @@ func (srv *SummaryService) Summarize(from, to time.Time, user *models.User, filt
 	var entityItems []*models.SummaryItem
 	var categoryItems []*models.SummaryItem
 
+	// Collect results from all parallel aggregations
 	for i := 0; i < len(types); i++ {
 		item := <-typedAggregations
 		switch item.Type {
@@ -214,11 +242,13 @@ func (srv *SummaryService) Summarize(from, to time.Time, user *models.User, filt
 		}
 	}
 
+	// Adjust time range to actual duration boundaries if durations exist
 	if durations.Len() > 0 {
 		from = time.Time(durations.First().Time)
 		to = time.Time(durations.Last().Time)
 	}
 
+	// Create the final summary object
 	summary := &models.Summary{
 		UserID:           user.ID,
 		FromTime:         models.CustomTime(from),
@@ -260,6 +290,19 @@ func (srv *SummaryService) Insert(summary *models.Summary) error {
 
 // Private summary generation and utility methods
 
+// aggregateBy groups durations by a specific entity type and sums their durations.
+// This is called in parallel for each entity type to speed up summary generation.
+//
+// Algorithm:
+// 1. Create a mapping from entity key to total duration
+// 2. For each duration, add its duration to the appropriate entity's total
+// 3. Convert the mapping to an array of SummaryItems
+// 4. Sort by total time descending
+// 5. Send result through the channel
+//
+// Example for SummaryProject:
+//   Input: [Duration{project: "wakapi", duration: 8min}, Duration{project: "frontend", duration: 4min}]
+//   Output: [SummaryItem{Key: "wakapi", Total: 8min}, SummaryItem{Key: "frontend", Total: 4min}]
 func (srv *SummaryService) aggregateBy(durations []*models.Duration, summaryType uint8, c chan models.SummaryItemContainer) {
 	mapping := make(map[string]time.Duration)
 
