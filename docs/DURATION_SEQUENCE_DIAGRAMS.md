@@ -178,7 +178,7 @@ sequenceDiagram
         else Different GroupHash
             Note over Merge: Extend left, keep right
             Merge->>Merge: middleLeft.Duration += diff
-            Merge->>Merge: result = cached[0..n] + missing[n+1..m]
+            Merge->>Merge: result = cached[0..n] + missing[n+1..m-1]
         end
     else diff >= HeartbeatTimeout
         Note over Merge: Keep both separate
