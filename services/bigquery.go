@@ -55,7 +55,9 @@ func NewBigQueryService() (*BigQueryService, error) {
 		return nil, nil
 	}
 
-	ctx := context.Background()
+	// Use context with timeout for initialization
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// Create BigQuery client with service account credentials
 	client, err := bigquery.NewClient(
@@ -70,16 +72,38 @@ func NewBigQueryService() (*BigQueryService, error) {
 	// Get reference to the table
 	table := client.Dataset(cfg.BigQuery.DatasetID).Table(cfg.BigQuery.TableID)
 
-	// Check if table exists, if not, create it
+	// Check if table exists, if not, create it with explicit schema
 	if _, err := table.Metadata(ctx); err != nil {
 		slog.Info("bigquery table does not exist, creating it",
 			"dataset", cfg.BigQuery.DatasetID,
 			"table", cfg.BigQuery.TableID)
 
-		schema, err := bigquery.InferSchema(BigQueryHeartbeat{})
-		if err != nil {
-			client.Close()
-			return nil, fmt.Errorf("failed to infer bigquery schema: %w", err)
+		// Define schema explicitly to ensure consistency
+		schema := bigquery.Schema{
+			{Name: "id", Type: bigquery.IntegerFieldType, Required: true},
+			{Name: "user_id", Type: bigquery.StringFieldType, Required: true},
+			{Name: "entity", Type: bigquery.StringFieldType, Required: true},
+			{Name: "type", Type: bigquery.StringFieldType},
+			{Name: "category", Type: bigquery.StringFieldType},
+			{Name: "project", Type: bigquery.StringFieldType},
+			{Name: "branch", Type: bigquery.StringFieldType},
+			{Name: "language", Type: bigquery.StringFieldType},
+			{Name: "is_write", Type: bigquery.BooleanFieldType},
+			{Name: "editor", Type: bigquery.StringFieldType},
+			{Name: "operating_system", Type: bigquery.StringFieldType},
+			{Name: "machine", Type: bigquery.StringFieldType},
+			{Name: "user_agent", Type: bigquery.StringFieldType},
+			{Name: "time", Type: bigquery.TimestampFieldType, Required: true},
+			{Name: "hash", Type: bigquery.StringFieldType},
+			{Name: "origin", Type: bigquery.StringFieldType},
+			{Name: "origin_id", Type: bigquery.StringFieldType},
+			{Name: "created_at", Type: bigquery.TimestampFieldType, Required: true},
+			{Name: "lines", Type: bigquery.IntegerFieldType},
+			{Name: "lineno", Type: bigquery.IntegerFieldType},
+			{Name: "cursorpos", Type: bigquery.IntegerFieldType},
+			{Name: "line_deletions", Type: bigquery.IntegerFieldType},
+			{Name: "line_additions", Type: bigquery.IntegerFieldType},
+			{Name: "project_root_count", Type: bigquery.IntegerFieldType},
 		}
 
 		if err := table.Create(ctx, &bigquery.TableMetadata{Schema: schema}); err != nil {
@@ -109,7 +133,10 @@ func (s *BigQueryService) InsertHeartbeats(heartbeats []*models.Heartbeat) error
 		return nil
 	}
 
-	ctx := context.Background()
+	// Use context with timeout for insert operations
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
 	inserter := s.table.Inserter()
 
 	// Convert model heartbeats to BigQuery format

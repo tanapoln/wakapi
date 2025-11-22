@@ -474,3 +474,12 @@ func (srv *HeartbeatService) checkInvalidateRangeCache(newHeartbeat *models.Hear
 		srv.cache.Delete(keyLast)
 	}
 }
+
+
+// Close closes any open resources, including BigQuery client
+func (srv *HeartbeatService) Close() error {
+if srv.bigQueryService != nil {
+return srv.bigQueryService.Close()
+}
+return nil
+}
