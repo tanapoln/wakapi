@@ -147,9 +147,9 @@ func NewBigQueryService() (*BigQueryService, error) {
 		// Define duration schema
 		durationSchema := bigquery.Schema{
 			{Name: "id", Type: bigquery.IntegerFieldType},
-			{Name: "user_id", Type: bigquery.StringFieldType, Required: true},
-			{Name: "time", Type: bigquery.TimestampFieldType, Required: true},
-			{Name: "duration", Type: bigquery.IntegerFieldType, Required: true},
+			{Name: "user_id", Type: bigquery.StringFieldType},
+			{Name: "time", Type: bigquery.TimestampFieldType},
+			{Name: "duration", Type: bigquery.IntegerFieldType},
 			{Name: "project", Type: bigquery.StringFieldType},
 			{Name: "language", Type: bigquery.StringFieldType},
 			{Name: "editor", Type: bigquery.StringFieldType},
@@ -160,7 +160,7 @@ func NewBigQueryService() (*BigQueryService, error) {
 			{Name: "entity", Type: bigquery.StringFieldType},
 			{Name: "num_heartbeats", Type: bigquery.IntegerFieldType},
 			{Name: "group_hash", Type: bigquery.StringFieldType},
-			{Name: "timeout", Type: bigquery.IntegerFieldType, Required: true},
+			{Name: "timeout", Type: bigquery.IntegerFieldType},
 		}
 
 		if err := durationTable.Create(ctx, &bigquery.TableMetadata{Schema: durationSchema}); err != nil {
