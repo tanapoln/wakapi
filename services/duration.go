@@ -31,6 +31,7 @@ type DurationService struct {
 	lastUserJob            map[string]time.Time
 	queue                  *artifex.Dispatcher
 	pending                datastructure.Set[string] // currently running per-user regeneration jobs
+	bigQueryService        *BigQueryService
 }
 
 func NewDurationService(durationRepository repositories.IDurationRepository, heartbeatService IHeartbeatService, userService IUserService, languageMappingService ILanguageMappingService) *DurationService {
@@ -44,6 +45,16 @@ func NewDurationService(durationRepository repositories.IDurationRepository, hea
 		lastUserJob:            make(map[string]time.Time),
 		queue:                  config.GetQueue(config.QueueProcessing),
 		pending:                datastructure.New[string](),
+	}
+
+	// Initialize BigQuery service if enabled
+	if srv.config != nil && srv.config.BigQuery.Enabled {
+		bqService, err := NewBigQueryService()
+		if err != nil {
+			config.Log().Error("failed to initialize bigquery service for durations", "error", err)
+		} else {
+			srv.bigQueryService = bqService
+		}
 	}
 
 	// TODO: refactor to updating durations on-the-fly as heartbeats flow in, instead of batch-wise
@@ -189,6 +200,15 @@ func (srv *DurationService) Regenerate(user *models.User, forceAll bool) {
 	if err := srv.repository.InsertBatch(durations); err != nil {
 		config.Log().Error("failed to persist new ephemeral durations for user", "user", user.ID, "error", err)
 		return
+	}
+
+	// Write to BigQuery asynchronously after successful database insert
+	if srv.bigQueryService != nil && len(durations) > 0 {
+		go func(durs []*models.Duration) {
+			if err := srv.bigQueryService.InsertDurations(durs); err != nil {
+				config.Log().Error("failed to insert durations to bigquery", "user", user.ID, "error", err)
+			}
+		}(durations)
 	}
 }
 

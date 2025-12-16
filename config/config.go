@@ -219,7 +219,8 @@ type bigQueryConfig struct {
 	ServiceAccountJsonPath string `yaml:"service_account_json_path" env:"WAKAPI_BIGQUERY_SERVICE_ACCOUNT_JSON_PATH"`
 	ProjectID              string `yaml:"project_id" env:"WAKAPI_BIGQUERY_PROJECT_ID"`
 	DatasetID              string `yaml:"dataset_id" env:"WAKAPI_BIGQUERY_DATASET_ID"`
-	TableID                string `yaml:"table_id" env:"WAKAPI_BIGQUERY_TABLE_ID"`
+	HeartbeatTableID       string `yaml:"heartbeat_table_id" default:"heartbeats" env:"WAKAPI_BIGQUERY_HEARTBEAT_TABLE_ID"`
+	DurationTableID        string `yaml:"duration_table_id" default:"durations" env:"WAKAPI_BIGQUERY_DURATION_TABLE_ID"`
 }
 
 type Config struct {
@@ -684,13 +685,11 @@ func Load(configFlag string, version string) *Config {
 		if config.BigQuery.DatasetID == "" {
 			Log().Fatal("bigquery_dataset_id is required when bigquery is enabled")
 		}
-		if config.BigQuery.TableID == "" {
-			Log().Fatal("bigquery_table_id is required when bigquery is enabled")
-		}
 		slog.Info("bigquery integration enabled",
 			"project", config.BigQuery.ProjectID,
 			"dataset", config.BigQuery.DatasetID,
-			"table", config.BigQuery.TableID)
+			"heartbeat_table", config.BigQuery.HeartbeatTableID,
+			"duration_table", config.BigQuery.DurationTableID)
 	}
 
 	cronParser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)

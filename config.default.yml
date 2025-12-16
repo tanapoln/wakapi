@@ -130,9 +130,10 @@ mail:
     tls:
 
 bigquery:
-  enabled: false                         # whether to enable writing heartbeats to BigQuery
+  enabled: false                         # whether to enable writing heartbeats and durations to BigQuery
   service_account_json_path:            # path to GCP service account JSON file
   project_id:                           # GCP project ID
   dataset_id:                           # BigQuery dataset ID
-  table_id:                             # BigQuery table ID (will be created if not exists)
+  heartbeat_table_id: heartbeats        # BigQuery heartbeat table ID (will be created if not exists)
+  duration_table_id: durations          # BigQuery duration table ID (will be created if not exists)
 

@@ -98,12 +98,79 @@ func TestBigQueryHeartbeat_SchemaMatches(t *testing.T) {
 	assert.Equal(t, heartbeat.ProjectRootCount, bqHeartbeat.ProjectRootCount)
 }
 
+func TestBigQueryDuration_SchemaMatches(t *testing.T) {
+	// This test ensures that the BigQuery duration schema matches the Duration model
+	// by creating instances of both and comparing their field mappings
+
+	now := time.Now()
+	customTime := models.CustomTime(now)
+
+	// Create a Duration model
+	duration := &models.Duration{
+		ID:              12345,
+		UserID:          "testuser",
+		Time:            customTime,
+		Duration:        30 * time.Minute,
+		Project:         "wakapi",
+		Language:        "Go",
+		Editor:          "vscode",
+		OperatingSystem: "linux",
+		Machine:         "my-machine",
+		Category:        "coding",
+		Branch:          "main",
+		Entity:          "/path/to/file.go",
+		NumHeartbeats:   15,
+		GroupHash:       "abc123def456",
+		Timeout:         10 * time.Minute,
+	}
+
+	// Create a BigQueryDuration
+	bqDuration := &BigQueryDuration{
+		ID:              duration.ID,
+		UserID:          duration.UserID,
+		Time:            duration.Time.T(),
+		Duration:        int64(duration.Duration),
+		Project:         duration.Project,
+		Language:        duration.Language,
+		Editor:          duration.Editor,
+		OperatingSystem: duration.OperatingSystem,
+		Machine:         duration.Machine,
+		Category:        duration.Category,
+		Branch:          duration.Branch,
+		Entity:          duration.Entity,
+		NumHeartbeats:   duration.NumHeartbeats,
+		GroupHash:       duration.GroupHash,
+		Timeout:         int64(duration.Timeout),
+	}
+
+	// Verify field mapping
+	assert.Equal(t, duration.ID, bqDuration.ID)
+	assert.Equal(t, duration.UserID, bqDuration.UserID)
+	assert.Equal(t, duration.Time.T(), bqDuration.Time)
+	assert.Equal(t, int64(duration.Duration), bqDuration.Duration)
+	assert.Equal(t, duration.Project, bqDuration.Project)
+	assert.Equal(t, duration.Language, bqDuration.Language)
+	assert.Equal(t, duration.Editor, bqDuration.Editor)
+	assert.Equal(t, duration.OperatingSystem, bqDuration.OperatingSystem)
+	assert.Equal(t, duration.Machine, bqDuration.Machine)
+	assert.Equal(t, duration.Category, bqDuration.Category)
+	assert.Equal(t, duration.Branch, bqDuration.Branch)
+	assert.Equal(t, duration.Entity, bqDuration.Entity)
+	assert.Equal(t, duration.NumHeartbeats, bqDuration.NumHeartbeats)
+	assert.Equal(t, duration.GroupHash, bqDuration.GroupHash)
+	assert.Equal(t, int64(duration.Timeout), bqDuration.Timeout)
+}
+
 func TestBigQueryService_Disabled(t *testing.T) {
 	// Test that BigQuery service operations gracefully handle nil/disabled state
 	var bqService *BigQueryService
 
 	// Should not panic and return no error
 	err := bqService.InsertHeartbeats([]*models.Heartbeat{})
+	assert.NoError(t, err)
+
+	// Should not panic and return no error
+	err = bqService.InsertDurations([]*models.Duration{})
 	assert.NoError(t, err)
 
 	// Should not panic and return no error
